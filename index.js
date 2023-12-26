@@ -34,6 +34,7 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
     const Menudata=client.db("RestaurantDB").collection("menu");
+    const Cartdata=client.db("RestaurantDB").collection("CartItems");
 
 
     //Client site data connections
@@ -42,6 +43,20 @@ async function run() {
         const result=await Menudata.find().toArray();
         res.send(result);
     });
+
+
+
+    app.get("/carts",async(req,res)=>{
+        const email=req.query.email;
+        const query={email:email};
+        const result=await Cartdata.find(query).toArray();
+        res.send(result);
+    });
+    app.post("/carts",async(req,res)=>{
+      const cartItem=req.body;
+      const result =await Cartdata.insertOne(cartItem);
+      res.send(result);
+    })
 
 
 
