@@ -33,9 +33,37 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
+    const userData=client.db("UsersDB").collection("Users")
     const Menudata=client.db("RestaurantDB").collection("menu");
     const Cartdata=client.db("RestaurantDB").collection("CartItems");
 
+
+    app.post("/users",async(req,res)=>{
+        const data=req.body;
+        const query={email:data.email}
+        const existedUser= await userData.findOne(query)
+        if(existedUser){
+          return res.send("User already exited", insertedId=null)
+        }
+        const result=await userData.insertOne(data)
+        res.send(result)
+    });
+    app.get("/all/users",async(req,res)=>{
+      const result=await userData.find().toArray();
+        res.send(result);
+    })
+    app.get("/users",async(req,res)=>{
+      const email=req.query.email;
+      const query={email:email};
+      const result=await userData.findOne(query)
+      res.send(result);
+    })
+    app.delete("/users/:id",async(req,res)=>{
+      const id=req.params.id;
+      const query={_id: new ObjectId(id)};
+      const result=await userData.deleteOne(query);
+      res.send(result);
+    })
 
     //Client site data connections
 
