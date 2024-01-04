@@ -3,6 +3,8 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const app=express();
 const cors=require("cors");
+var jwt = require('jsonwebtoken');
+
 const port=process.env.PORT || 5000;
 
 
@@ -37,6 +39,48 @@ async function run() {
     const Menudata=client.db("RestaurantDB").collection("menu");
     const Cartdata=client.db("RestaurantDB").collection("CartItems");
 
+    //Jwt api
+    app.post("/jwt",async(req,res)=>{
+      const user=req.body;
+      const token=jwt.sign(user,process.env.ACCESS_TOKEN , {
+        expiresIn:"1hr"
+      })
+      console.log(token)
+      res.send({token});
+    })
+
+    const verifyToken=(req,res,next)=>{
+      
+      if(!req.headers.authorization){
+        return res.status(401).send({meassge:"Forbidden access"})
+      }
+      const token=req.headers.authorization.split(" ")[1]
+      jwt.verify(token,process.env.ACCESS_TOKEN,(error,decoded)=>{
+        if(error){
+          return res.status(401).send({meassge:"Forbidden access"});
+        }
+        req.decoded=decoded;
+        next();
+      })
+      
+    }
+
+    const verifyAdmin=async(req,res,next)=>{
+   
+      const email=req.decoded.email;
+      query={email:email}
+      const user=await userData.findOne(query);
+      const isAdmin=user?.role==="admin"
+      if(!isAdmin){
+        return res.status(403).send({meassge:"Unauthorized access"});
+      }
+      next();
+
+    }
+      
+    
+
+    //user api
 
     app.post("/users",async(req,res)=>{
         const data=req.body;
@@ -48,7 +92,8 @@ async function run() {
         const result=await userData.insertOne(data)
         res.send(result)
     });
-    app.get("/all/users",async(req,res)=>{
+    app.get("/all/users",verifyToken,verifyAdmin,async(req,res)=>{
+      
       const result=await userData.find().toArray();
         res.send(result);
     })
@@ -64,6 +109,32 @@ async function run() {
       const result=await userData.deleteOne(query);
       res.send(result);
     })
+    app.patch("/user/admin/:id",verifyToken,async(req,res)=>{
+      const id=req.params.id;
+      const filter={_id:new ObjectId(id)};
+      const Updatedoc={
+        $set:{
+          role:"admin"
+        }
+      }
+      const result = await userData.updateOne(filter, Updatedoc);
+      res.send(result);
+    });
+
+    app.get("/users/admin/:email",verifyToken,async(req,res)=>{
+        const email=req.params.email;
+        if(email !== req.decoded.email){
+          return res.status(403).send({meassge:"Unauthorized access"})
+        }
+        const query={email:email}
+        const user=await userData.findOne(query)
+        let isAdmin=false;
+        if(user){
+          isAdmin=user?.role==="admin"
+        }
+        console.log(isAdmin);
+        res.send({isAdmin})
+    })
 
     //Client site data connections
 
@@ -71,6 +142,12 @@ async function run() {
         const result=await Menudata.find().toArray();
         res.send(result);
     });
+
+    app.post("/menu",async(req,res)=>{
+      const data=req.body;
+      const result=await Menudata.insertOne(data);
+      res.send(result)
+    })
 
 
 
